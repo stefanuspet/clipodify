@@ -1,0 +1,65 @@
+# --- Rahasia ---
+.env
+.env.*
+!.env.example
+client_secret*.json
+credentials*.json
+token*.json
+*.pem
+*.key
+.streamlit/secrets.toml
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+venv/
+.venv/
+env/
+*.egg-info/
+build/
+dist/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+
+# --- Data lokal & hasil proses ---
+tmp/
+output/
+db/*.db
+db/*.db-journal
+db/*.db-wal
+db/*.db-shm
+db/*.db.bak*
+*.sqlite
+*.sqlite3
+*.log
+nohup.out
+
+# --- Media unduhan / hasil klip ---
+*.mp4
+*.mkv
+*.mov
+*.webm
+*.m4a
+*.mp3
+*.wav
+*.part
+*.ytdl
+
+# --- Model Whisper / cache ---
+models/
+*.bin
+*.pt
+*.onnx
+
+# --- Catatan internal ---
+docs/
+
+# --- Editor, OS, alat ---
+.claude/settings.local.json
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db

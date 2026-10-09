@@ -1,0 +1,18 @@
+[theme]
+# Gelap disengaja: halaman ini penuh thumbnail dan pemutar video, dan latar
+# terang membuat gambar-gambar itu berebut perhatian dengan antarmukanya.
+base = "dark"
+# Ganti ke "light" di sini kalau lebih suka terang — sisa palet di bawah sudah
+# dipilih supaya tetap terbaca di kedua mode.
+primaryColor = "#6366F1"
+backgroundColor = "#0E1117"
+secondaryBackgroundColor = "#161A23"
+textColor = "#E6E8EE"
+font = "sans serif"
+
+[client]
+toolbarMode = "minimal"
+showErrorDetails = true
+
+[server]
+runOnSave = true
