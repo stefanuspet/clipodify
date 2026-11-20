@@ -1,92 +1,237 @@
 # Clipodify
 
-AI-powered clip finder untuk podcast & interview. Mengidentifikasi momen
-berpotensi viral lewat 4 sinyal prefilter + Gemini sebagai judge.
+Editor klip podcast otomatis bertenaga AI. Dari video podcast panjang, Clipodify memotong momen terbaik, mengedit jadi portrait 1080×1920 untuk TikTok/Reels/Shorts — lengkap dengan subtitle, SFX, transisi, label nama, emoji stiker, dan jadwal upload ke YouTube — tanpa menyentuh timeline secara manual.
 
-## Requirements
+---
 
-- Python 3.10+
-- CUDA GPU (RTX 3050 atau lebih) untuk Whisper
-- ffmpeg (`sudo apt install ffmpeg`)
+## Prasyarat
+
+| Kebutuhan | Versi minimum | Catatan |
+|---|---|---|
+| Python | 3.10+ | 3.12 direkomendasikan |
+| Node.js | 18+ | Untuk frontend |
+| FFmpeg | 6.0+ | Lihat instalasi di bawah |
+| CUDA GPU | RTX 3050 atau setara | Untuk Whisper; CPU bisa tapi lambat |
+| Gemini API key | — | Gratis di [AI Studio](https://aistudio.google.com/apikey) |
+
+### Instalasi FFmpeg
+
+**Ubuntu/Debian**
+```bash
+sudo apt install ffmpeg
+```
+
+**Windows** — unduh dari [ffmpeg.org/download](https://ffmpeg.org/download.html), ekstrak, lalu tambahkan folder `bin/` ke PATH.
+
+**macOS**
+```bash
+brew install ffmpeg
+```
+
+---
 
 ## Setup
 
+### 1. Clone & buat virtual environment
+
+**Linux/macOS**
 ```bash
+git clone <repo-url> clipodify
+cd clipodify
 python3 -m venv venv
 source venv/bin/activate
-pip install -r requirements.txt
-
-cp .env.example .env
-# Edit .env, isi GEMINI_API_KEY
 ```
 
-Ambil API key gratis di [Google AI Studio](https://aistudio.google.com/apikey).
+**Windows (PowerShell)**
+```powershell
+git clone <repo-url> clipodify
+cd clipodify
+python -m venv venv
+venv\Scripts\Activate.ps1
+```
 
-## Run
+### 2. Install dependensi Python
 
 ```bash
-streamlit run app.py
+pip install -r requirements.txt
 ```
 
-Buka browser: http://localhost:8501
+> Kalau tidak punya GPU NVIDIA, ganti baris `torch` di `requirements.txt` dengan versi CPU:
+> ```
+> torch>=2.1.0+cpu --extra-index-url https://download.pytorch.org/whl/cpu
+> ```
+> Transkripsi tetap jalan, tapi lebih lambat sekitar 5–10×.
 
-## Cara kerja
+### 3. Install dependensi frontend
 
-Dua tahap. **Prefilter** (murah, lokal) menyaring video jadi ~30 lingkungan
-kandidat — tugasnya bukan meranking dengan presisi, tapi memastikan momen bagus
-tidak hilang sebelum Gemini melihatnya. **Gemini** menerima transcript utuh tiap
-kandidat plus 60 detik konteks sebelum & sesudah, lalu menentukan sendiri titik
-potong yang tepat.
+```bash
+cd frontend
+npm install
+cd ..
+```
 
-| Sinyal | Bobot | Mengukur |
+### 4. Konfigurasi
+
+```bash
+cp .env.example .env
+```
+
+Buka `.env`, isi minimal:
+
+```env
+GEMINI_API_KEY=AIza...        # wajib
+OUTPUT_DIR=~/Downloads/clipodify
+```
+
+Untuk Windows, gunakan path dengan backslash atau forward slash:
+```env
+OUTPUT_DIR=C:/Users/NamaAnda/Downloads/clipodify
+```
+
+Semua variabel lain sudah ada default yang masuk akal.
+
+### 5. (Opsional) Google OAuth untuk YouTube Analytics & Upload
+
+Diperlukan hanya untuk halaman YouTube. Lihat bagian **Koneksi YouTube** di bawah.
+
+---
+
+## Menjalankan aplikasi
+
+Dua proses perlu dijalankan bersamaan: backend Python dan frontend React.
+
+**Terminal 1 — Backend**
+
+Linux/macOS:
+```bash
+source venv/bin/activate
+uvicorn backend.main:app --reload --port 8000
+```
+
+Windows (PowerShell):
+```powershell
+venv\Scripts\Activate.ps1
+uvicorn backend.main:app --reload --port 8000
+```
+
+**Terminal 2 — Frontend**
+
+```bash
+cd frontend
+npm run dev
+```
+
+Buka browser: **http://localhost:5173**
+
+---
+
+## Alur kerja
+
+### 1. Analyze — temukan klip terbaik
+Masukkan URL video YouTube atau upload file video lokal. Clipodify:
+- Mentranskripsi dengan Whisper (GPU jika ada)
+- Mendeteksi wajah, orang, dan ekspresi
+- Memilih 10–15 kandidat momen dengan Gemini
+
+### 2. Editor — edit satu klip
+Pilih kandidat, lalu tekan **Auto Edit**. Gemini menyusun rencana:
+- Framing & zoom ke orang yang berbicara
+- Subtitle bergaya dengan highlight per kata
+- SFX (whoosh di transisi, build-up sebelum momen penting)
+- Grade warna, stiker emoji, label nama pembicara
+- Progress bar tipis di atas
+
+Render menghasilkan file MP4 portrait 1080×1920 siap upload.
+
+### 3. YouTube — jadwalkan upload
+Hubungkan akun YouTube di halaman YouTube, lalu upload satu klip atau jadwalkan beberapa klip sekaligus dengan jarak aman otomatis.
+
+---
+
+## Koneksi YouTube (opsional)
+
+Untuk upload dan melihat analytics channel:
+
+1. Buat proyek di [Google Cloud Console](https://console.cloud.google.com/)
+2. Aktifkan **YouTube Data API v3** dan **YouTube Analytics API**
+3. Buat OAuth 2.0 client (tipe: Desktop app)
+4. Unduh file `client_secret_*.json`
+5. Di aplikasi, buka halaman **YouTube** → paste isi file JSON → klik Connect
+6. Setujui izin di browser
+
+> **Penting:** Proyek Google Cloud yang belum lolos [audit YouTube API](https://developers.google.com/youtube/v3/guides/auth/client-side-web-apps) hanya bisa mengupload video sebagai private permanen — jadwal tayang publik tidak berjalan sampai audit disetujui. Ini gratis tapi prosesnya beberapa minggu.
+
+---
+
+## Model AI yang digunakan
+
+| Model | Kapan dipakai |
+|---|---|
+| `gemini-3.6-flash` | Default untuk semua langkah (plan edit, analisis kandidat) |
+| `gemini-3.5-flash` | Cadangan otomatis jika model utama sedang sibuk/error |
+| `gemini-3.5-flash-lite` | Cadangan kedua; lebih hemat kuota |
+
+Semua model bisa diganti di `.env` (`GEMINI_MODEL`, `GEMINI_FALLBACK_MODELS`).
+
+Jika model tidak menjawab dalam 5 menit (server sibuk), sistem otomatis pindah ke model berikutnya. Batas waktu bisa diubah via `GEMINI_TIMEOUT_S` di `.env`.
+
+---
+
+## Catatan Windows
+
+Beberapa hal yang berbeda di Windows:
+
+- **Font emoji:** Noto Color Emoji otomatis di-cache dari font sistem (Linux) atau dari file yang di-bundel. Di Windows, emoji stiker akan menggunakan Segoe UI Emoji jika tersedia.
+- **Path separator:** `.env` bisa pakai forward slash (`C:/Users/...`) atau backslash double (`C:\\Users\\...`).
+- **Multiprocessing:** Backend menggunakan spawn-based multiprocessing, sudah kompatibel dengan Windows.
+- **CUDA:** Pastikan driver NVIDIA dan CUDA toolkit versi yang kompatibel dengan PyTorch sudah terinstal. Cek [pytorch.org/get-started](https://pytorch.org/get-started/locally/) untuk perintah install yang tepat.
+
+---
+
+## Variabel `.env` penting
+
+| Variabel | Default | Keterangan |
 |---|---|---|
-| Comment mention | 30% | Bukti nyata penonton (bukan proxy) |
-| Audio energy + shape | 25% | Intensitas & letak puncaknya |
-| Narrative (tanya→jawab) | 25% | Bentuk cerita, bukan tingkat |
-| Text heuristic | 20% | Kepadatan, angka |
-| Ad-read detection | drop | Iklan sponsor dibuang total |
+| `GEMINI_API_KEY` | — | **Wajib diisi** |
+| `OUTPUT_DIR` | `~/Downloads/clipodify` | Folder output video |
+| `WHISPER_MODEL` | `large-v2` | Ukuran model Whisper (`tiny`, `base`, `small`, `medium`, `large-v2`) |
+| `WHISPER_DEVICE` | `cuda` | Ganti ke `cpu` jika tidak ada GPU |
+| `WHISPER_COMPUTE_TYPE` | `float16` | Ganti ke `int8` atau `float32` untuk GPU dengan VRAM terbatas |
+| `GEMINI_TIMEOUT_S` | `300` | Batas waktu panggilan Gemini (detik) |
+| `CHANNEL_TZ_OFFSET` | `7` | Zona waktu channel untuk saran jadwal upload (WIB = 7) |
 
-Kalau video tidak punya cukup mention timestamp di komentar (default: minimal 5),
-bobot comment dinormalisasi ulang ke tiga sinyal sisanya.
+Semua opsi lengkap ada di `.env.example`.
 
-Hasil Gemini divalidasi berlapis: skala skor dinormalisasi, timestamp di-snap ke
-transcript asli (kandidat yang meleset >30 detik dibuang sebagai halusinasi),
-durasi difilter keras 30–90 detik, kandidat berdekatan di-dedupe, dan variasi
-`clip_type` dijaga supaya daftar akhirnya bisa dipilih.
+---
 
-## Model AI
+## Troubleshooting
 
-Default: `gemini-3.6-flash`.
+**"No module named X"**
+Pastikan virtual environment aktif sebelum menjalankan backend.
 
-> **Penting:** `gemini-2.5-flash` dan yang lebih lama **tidak tersedia untuk API
-> key baru** (404 "no longer available to new users"). Model 1.5.x dan 2.0.x
-> sudah shut down sepenuhnya.
+**Whisper gagal / keluar memori**
+Ganti `WHISPER_MODEL=medium` atau `small` di `.env`, dan `WHISPER_COMPUTE_TYPE=int8`.
 
-Alternatif hemat kuota: `gemini-3.5-flash-lite` — sekitar 3× lebih hemat token,
-tapi cenderung memilih potongan lebih pendek sehingga lebih banyak kandidat
-gugur di filter durasi.
+**Gemini error "model not available"**
+Model `gemini-2.5-flash` dan lebih lama sudah tidak tersedia untuk API key baru. Pakai `gemini-3.6-flash` (sudah jadi default).
 
-Cek model yang aktif untuk akunmu di
-[AI Studio](https://aistudio.google.com/rate-limit). Project ini memakai SDK
-`google-genai`, bukan `google-generativeai` yang sudah deprecated.
+**Auto Edit macet lama**
+Normal jika Gemini sedang sibuk — sistem akan coba model cadangan secara otomatis. Jika lebih dari 20 menit, restart backend dan coba lagi.
 
-## Tuning
+**Upload YouTube gagal "insufficient permissions"**
+Klik "Hubungkan ulang (izin upload)" di halaman YouTube. Koneksi awal hanya untuk analytics; upload butuh izin tambahan yang diminta sekali.
 
-Semua bobot dan threshold ada di `.env`. Kalau hasilnya kurang bagus, yang paling
-berpengaruh bukan bobot sinyal tapi `PAUSE_GAP_THRESHOLD` (default 1.2) — coba
-0.8 atau 1.6 dulu sebelum menyentuh yang lain.
+**Frontend tidak bisa terhubung ke backend**
+Pastikan backend berjalan di port 8000 dan frontend di port 5173. Kalau port berbeda, atur `VITE_API_URL` di `frontend/.env.local`.
 
-Statistik tiap tahap ditampilkan di UI saat processing. Kalau hasilnya sedikit,
-angka itu memberitahu di mana hilangnya — "Gemini kirim 15, snap membuang 11"
-adalah masalah yang sangat berbeda dari "Gemini cuma mengembalikan 4".
+---
 
-## Batasan
+## Lisensi
 
-- Hanya untuk konten berbicara. Video musik/instrumental menghasilkan transcript
-  kosong karena VAD membuang semuanya sebagai non-speech.
-- Sinyal comment hanya berguna untuk video yang sudah punya penonton.
+Kode sumber: MIT.
 
-## Output
-
-Clip tersimpan di `~/clipodify_output/{video_title}/`
-Format: MP4, kualitas original, no re-encode.
+Dependensi pihak ketiga memiliki lisensi masing-masing. Yang perlu diperhatikan:
+- **FFmpeg**: LGPL/GPL tergantung konfigurasi build
+- **Noto Color Emoji**: SIL Open Font License 1.1
+- **InsightFace**: MIT
+- **Ultralytics (YOLO)**: AGPL-3.0 untuk penggunaan open-source; lisensi komersial tersedia
