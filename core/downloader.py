@@ -39,7 +39,6 @@ BASE_OPTS = {
     "quiet": True,
     "no_warnings": True,
     "nocheckcertificate": True,
-    "extractor_args": {"youtube": {"player_client": ["android", "web"]}},
     **cookie_opts(),
 }
 
@@ -176,10 +175,18 @@ def download_full(url: str, output_path: str, progress_hook=None) -> str:
 
 
 def _download_range(url: str, start: float, end: float, output_path: str) -> str:
-    # DIPERBAIKI: Menggunakan **BASE_OPTS agar cookie dan player_client ikut terbawa ke FFmpeg
+    # Prioritas H.264 (avc1) karena support stream copy + keyframe cut
+    # VP9/AV1 video-only stream gagal saat range download dengan force_keyframes
+    VIDEO_FORMAT = (
+        "bestvideo[height<=1080][vcodec^=avc1][ext=mp4]+bestaudio[ext=m4a]"
+        "/bestvideo[height<=720][vcodec^=avc1][ext=mp4]+bestaudio[ext=m4a]"
+        "/bestvideo[height<=480][vcodec^=avc1][ext=mp4]+bestaudio[ext=m4a]"
+        "/bestvideo[vcodec^=avc1]+bestaudio"
+        "/bestvideo+bestaudio/best"
+    )
     opts = {
         **BASE_OPTS,
-        "format": "bestvideo+bestaudio/best",
+        "format": VIDEO_FORMAT,
         "merge_output_format": "mp4",
         "download_ranges": yt_dlp.utils.download_range_func(None, [(start, end)]),
         "force_keyframes_at_cuts": True,

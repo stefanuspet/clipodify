@@ -1,0 +1,26 @@
+# Library musik latar. HANYA musik bebas hak cipta / berlisensi jelas.
+# Lagu tanpa license.source DAN license.type tidak akan pernah dipilih renderer.
+#
+# Cara menambah lagu:
+#   1. Taruh file audio di folder ini.
+#   2. Jalankan: python tools/index_music.py   (mengisi durasi, bpm, energi otomatis)
+#   3. Lengkapi `mood` dan `license` untuk lagu itu di file ini.
+#
+# mood:   playful | upbeat | chill | inspirational | cinematic | tense | sad | ambient
+# energy: low | mid | high
+#
+# Contoh entri:
+# - file: contoh_lagu.mp3
+#   title: "Judul Lagu"
+#   mood: [playful, upbeat]
+#   energy: mid
+#   bpm: 112
+#   duration_s: 134.2
+#   license:
+#     source: "Nama penyedia / pembuat"
+#     url: "https://…"
+#     type: "CC0 / CC BY 4.0 / lisensi penyedia …"
+#     attribution_required: false
+#     attribution_text: ""
+
+tracks: []

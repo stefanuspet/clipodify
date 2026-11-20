@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from "react"
-import { Loader2, Music2, Pause, Play, Upload, X } from "lucide-react"
+import { Music2, Pause, Play, X } from "lucide-react"
 import { api } from "../../lib/api"
 
 const API = import.meta.env.VITE_API_URL ?? "http://localhost:8000"
 
 export type SfxItem = {
   id: string; name: string; filename: string
-  category: string; duration_s: number; size_kb: number
+  category: string; duration_s: number; size_kb: number; tag?: string
 }
 
 const SFX_CAT_BADGE: Record<string, string> = {
@@ -19,16 +19,14 @@ const SFX_CAT_BADGE: Record<string, string> = {
   other:      "bg-zinc-500/20 text-zinc-400",
 }
 
-export function SfxSection() {
+export function SfxSection({ refreshKey = 0 }: { refreshKey?: number }) {
   const [sfxList, setSfxList]     = useState<SfxItem[]>([])
   const [playing, setPlaying]     = useState<string | null>(null)
-  const [uploading, setUploading] = useState(false)
   const audioRef                  = useRef<HTMLAudioElement | null>(null)
-  const uploadRef                 = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     api.get("/api/editor/sfx").then(r => setSfxList(r.data))
-  }, [])
+  }, [refreshKey])
 
   function togglePlay(sfx: SfxItem) {
     const url = `${API}/assets/sfx/${sfx.filename}`
@@ -45,24 +43,6 @@ export function SfxSection() {
     setPlaying(sfx.id)
   }
 
-  async function handleUpload(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    if (!file) return
-    setUploading(true)
-    try {
-      const form = new FormData()
-      form.append("file", file)
-      await api.post("/api/editor/sfx/upload", form, {
-        headers: { "Content-Type": "multipart/form-data" },
-      })
-      const r = await api.get("/api/editor/sfx")
-      setSfxList(r.data)
-    } finally {
-      setUploading(false)
-      if (uploadRef.current) uploadRef.current.value = ""
-    }
-  }
-
   async function handleDelete(id: string) {
     await api.delete(`/api/editor/sfx/${id}`)
     setSfxList(prev => prev.filter(s => s.id !== id))
@@ -77,11 +57,7 @@ export function SfxSection() {
           Sound Effects
           <span className="badge bg-zinc-800 text-zinc-400">{sfxList.length}</span>
         </h2>
-        <label className={`btn-ghost text-xs cursor-pointer ${uploading ? "opacity-50 pointer-events-none" : ""}`}>
-          {uploading ? <Loader2 size={13} className="animate-spin" /> : <Upload size={13} />}
-          Upload SFX
-          <input ref={uploadRef} type="file" accept=".mp3,.wav,.ogg,.m4a" className="hidden" onChange={handleUpload} />
-        </label>
+        <span className="text-xs text-zinc-500">Tambah lewat "Impor Audio" (lisensi wajib)</span>
       </div>
 
       <div className="space-y-1.5">
@@ -105,7 +81,7 @@ export function SfxSection() {
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium text-zinc-100">{sfx.name}</span>
                 <span className={`badge text-[9px] ${SFX_CAT_BADGE[sfx.category] ?? SFX_CAT_BADGE.other}`}>
-                  {sfx.category}
+                  {sfx.tag ?? sfx.category}
                 </span>
               </div>
               <p className="text-zinc-500 text-xs">{sfx.duration_s}s · {sfx.size_kb} KB · {sfx.filename}</p>

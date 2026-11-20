@@ -12,9 +12,11 @@ import { ClipPreview } from "../components/editor/ClipPreview"
 import { CandidateInfo } from "../components/editor/CandidateInfo"
 import { CaptionPanel } from "../components/editor/CaptionPanel"
 import { TextOverlays, type TextOverlay } from "../components/editor/TextOverlays"
+import { UploadPanel } from "../components/editor/UploadPanel"
 
-type SubtitlePreset  = { id: string; label: string; [k: string]: any }
-type FilterPreset    = { id: string; [k: string]: any }
+type StudioStyle     = { id: string; name: string; favorite: boolean; created_by: string }
+type Grade           = { contrast: number; saturation: number; brightness: number; gamma: number; warmth: number; tint: number }
+const NEUTRAL_GRADE: Grade = { contrast: 1, saturation: 1, brightness: 0, gamma: 1, warmth: 0, tint: 0 }
 type SfxItem         = { id: string; name: string; filename: string; category: string; duration_s: number; size_kb: number }
 type SfxConfig       = { sfx_id: string; volume: number; timestamp: number }
 type ExpressionType  = { id: string; label: string; emoji: string }
@@ -25,23 +27,18 @@ export function EditorPage() {
   const jobId       = params.get("job")
   const candidateId = params.get("candidate")
 
-  const [subPresets, setSubPresets]      = useState<SubtitlePreset[]>([])
-  const [filterPresets, setFilterPresets] = useState<FilterPreset[]>([])
+  const [styles, setStyles]              = useState<StudioStyle[]>([])
   const [sfxList, setSfxList]            = useState<SfxItem[]>([])
   const [exprTypes, setExprTypes]        = useState<ExpressionType[]>([])
 
-  const [selectedSub, setSelectedSub]  = useState("default")
-  const [subOffset, setSubOffset]      = useState(0.0)
-  const [selectedFilter, setSelectedFilter] = useState("none")
+  const [styleId, setStyleId]          = useState<string>("")
+  const [grade, setGrade]              = useState<Grade>(NEUTRAL_GRADE)
   const [sfxConfig, setSfxConfig]      = useState<SfxConfig[]>([])
   const [expressions, setExpressions]  = useState<ExpressionClip[]>([])
 
   const [textOverlays, setTextOverlays] = useState<TextOverlay[]>([])
   const [clipDuration, setClipDuration] = useState(60)
   const [thumbUrl, setThumbUrl]         = useState<string | null>(null)
-
-  const [autoLoading, setAutoLoading] = useState(false)
-  const [autoMsg, setAutoMsg]         = useState("")
 
   const [seekTo, setSeekTo]       = useState<number | null>(null)
   const [renderId, setRenderId]   = useState<string | null>(null)
@@ -51,13 +48,25 @@ export function EditorPage() {
     persona?: string; beats?: { type: string; s: number; e: number; note: string }[];
     duration?: number; source_duration?: number; cut_seconds?: number; teaser_s?: number;
     music?: { title?: string; credit?: string | null } | null;
+    rhythm?: { count: number; per_10s: number; avg_interval: number; max_gap: number; long_gaps: number;
+      gaps: { s: number; e: number; len: number; long: boolean }[] };
+    transitions?: { t: number; from: string; to: string; placed: boolean; reason?: string }[];
+    build_ups?: { t: number; placed: boolean; riser?: string; hit?: string | null; reason?: string }[];
+    gap_fills?: { gap: number[]; len: number; action: string; word?: string; t?: number }[];
+    visual_transitions?: { t: number; kind: string }[];
+    emojis?: { emoji: string; t: number }[];
+    name_labels?: { name: string; role: string; t: number }[];
+    music_moments?: { t: number; end: number; kind: string }[];
     people?: { id: string; name: string; role: string; confidence: number; speak_s?: number; evidence: string }[] } | null>(null)
 
   const { latest } = useRenderWs(renderId)
 
   useEffect(() => {
-    api.get("/api/editor/presets/subtitle").then(r => setSubPresets(r.data))
-    api.get("/api/editor/presets/filter").then(r => setFilterPresets(r.data))
+    api.get("/api/studio/styles").then(r => {
+      setStyles(r.data)
+      const fav = (r.data as StudioStyle[]).find(s => s.favorite) ?? r.data[0]
+      if (fav) setStyleId(fav.id)
+    })
     api.get("/api/editor/sfx").then(r => setSfxList(r.data))
     api.get("/api/editor/expressions").then(r => setExprTypes(r.data))
   }, [])
@@ -92,7 +101,9 @@ export function EditorPage() {
           setAutoPlan({ intent: data.intent, reasoning: data.reasoning, fixes: data.fixes, model: data.model,
             error: data.error, persona: data.persona, beats: data.beats, duration: data.duration,
             source_duration: data.source_duration, cut_seconds: data.cut_seconds, teaser_s: data.teaser_s,
-            music: data.music, people: data.people })
+            music: data.music, people: data.people, rhythm: data.rhythm, transitions: data.transitions,
+            build_ups: data.build_ups, gap_fills: data.gap_fills, visual_transitions: data.visual_transitions,
+            emojis: data.emojis, name_labels: data.name_labels, music_moments: data.music_moments })
         if (data.status === "done") { setRenderStatus("done"); setRendering(false) }
         else if (data.status === "error") { setRenderStatus("error"); setRendering(false) }
       } catch { /* ignore */ }
@@ -104,15 +115,12 @@ export function EditorPage() {
     if (!jobId || !candidateId) return
     setRendering(true); setRenderId(null); setRenderStatus("running")
     try {
-      const subStyle = subPresets.find(p => p.id === selectedSub) ?? {}
-      const { id: _sid, label: _sl, ...subConfig } = subStyle as any
-
       const { data } = await api.post("/api/editor/render", {
         job_id: Number(jobId),
         candidate_id: Number(candidateId),
         config: {
-          subtitle: selectedSub !== "none" ? { ...subConfig, offset: subOffset } : null,
-          filter: { preset: selectedFilter },
+          subtitle_style_id: styleId || null,
+          grade,
           sfx: sfxConfig,
           expressions: expressions.map(({ type, start, end }) => ({ type, start, end })),
           text_overlays: textOverlays.map(({ id: _id, ...rest }) => rest),
@@ -135,27 +143,6 @@ export function EditorPage() {
     }
   }
 
-  async function autoConfig() {
-    if (!candidateId) return
-    setAutoLoading(true); setAutoMsg("")
-    try {
-      const { data } = await api.post("/api/editor/auto-config", {
-        candidate_id: Number(candidateId),
-      })
-      if (data.subtitle)      setSelectedSub(data.subtitle)
-      if (data.filter)        setSelectedFilter(data.filter)
-      if (Array.isArray(data.sfx))
-        setSfxConfig(data.sfx)
-      if (Array.isArray(data.text_overlays))
-        setTextOverlays(data.text_overlays.map((o: any) => ({ ...o, id: crypto.randomUUID() })))
-      setAutoMsg(data.reasoning ?? "Config diterapkan.")
-    } catch (err: any) {
-      setAutoMsg(err?.response?.data?.detail ?? "Gagal mendapat rekomendasi.")
-    } finally {
-      setAutoLoading(false)
-    }
-  }
-
   const isDone = renderStatus === "done"
 
   return (
@@ -164,25 +151,6 @@ export function EditorPage() {
         <h1 className="text-2xl font-bold flex items-center gap-2">
           <Clapperboard size={24} className="text-brand-500" /> Video Editor
         </h1>
-        {jobId && candidateId && (
-          <div className="flex flex-col items-end gap-1">
-            <button
-              onClick={autoConfig}
-              disabled={autoLoading}
-              className="flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-brand-600
-                hover:from-purple-500 hover:to-brand-500 text-white text-sm font-medium transition-all
-                disabled:opacity-60 shadow-lg shadow-brand-900/30"
-            >
-              {autoLoading
-                ? <Loader2 size={15} className="animate-spin" />
-                : <Wand2 size={15} />}
-              {autoLoading ? "Memilih…" : "Auto Config"}
-            </button>
-            {autoMsg && (
-              <p className="text-xs text-zinc-500 max-w-xs text-right leading-snug">{autoMsg}</p>
-            )}
-          </div>
-        )}
       </div>
 
       {(!jobId || !candidateId) && (
@@ -206,105 +174,45 @@ export function EditorPage() {
           {/* Caption */}
           <CaptionPanel candidateId={candidateId} />
 
-          {/* Subtitle */}
+          {/* Subtitle (gaya dari Studio) */}
           <div className="card space-y-3">
-            <h2 className="font-semibold text-sm uppercase tracking-wide text-zinc-400">Subtitle Style</h2>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              <button
-                onClick={() => setSelectedSub("none")}
-                className={`px-3 py-2 rounded-lg text-sm border transition-colors
-                  ${selectedSub === "none" ? "border-brand-500 bg-brand-600/10 text-brand-400" : "border-zinc-700 text-zinc-400 hover:border-zinc-500"}`}
-              >
-                No Subtitle
-              </button>
-              {subPresets.map(p => (
-                <button
-                  key={p.id}
-                  onClick={() => setSelectedSub(p.id)}
-                  className={`px-3 py-2 rounded-lg text-sm border transition-colors
-                    ${selectedSub === p.id ? "border-brand-500 bg-brand-600/10 text-brand-400" : "border-zinc-700 text-zinc-400 hover:border-zinc-500"}`}
-                >
-                  {p.label}
-                </button>
-              ))}
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold text-sm uppercase tracking-wide text-zinc-400">Gaya Subtitle</h2>
+              <a href="/studio" className="text-xs text-brand-400 hover:underline">Kelola di Studio →</a>
             </div>
-
-            {/* Subtitle timestamp offset */}
-            {selectedSub !== "none" && (
-              <div className="pt-1 space-y-1.5 border-t border-zinc-800">
-                <label className="text-zinc-500 text-xs flex items-center justify-between">
-                  <span>Subtitle Offset <span className="text-zinc-600">(sync dengan video)</span></span>
-                  <span className={`font-mono text-sm ${subOffset > 0 ? "text-yellow-400" : subOffset < 0 ? "text-blue-400" : "text-zinc-400"}`}>
-                    {subOffset > 0 ? "+" : ""}{subOffset.toFixed(1)}s
-                  </span>
-                </label>
-                <input
-                  type="range" min="-3" max="3" step="0.1"
-                  value={subOffset}
-                  onChange={e => setSubOffset(parseFloat(e.target.value))}
-                  className="w-full accent-brand-500"
-                />
-                <div className="flex justify-between text-zinc-600 text-[10px]">
-                  <span>−3s (lebih awal)</span>
-                  <button
-                    onClick={() => setSubOffset(0)}
-                    className="text-zinc-500 hover:text-zinc-300 transition-colors"
-                  >reset</button>
-                  <span>+3s (delay)</span>
-                </div>
-              </div>
-            )}
+            <select value={styleId} onChange={e => setStyleId(e.target.value)}
+              className="w-full bg-zinc-900 border border-zinc-700 rounded-lg px-3 py-2 text-sm">
+              <option value="">Tanpa subtitle</option>
+              {styles.map(s => (
+                <option key={s.id} value={s.id}>
+                  {s.favorite ? "★ " : ""}{s.name}{s.created_by === "gemini" ? " (Gemini)" : ""}
+                </option>
+              ))}
+            </select>
+            <p className="text-xs text-zinc-500">Waktu kata mengikuti transkrip asli; posisi otomatis menghindari wajah.</p>
           </div>
 
-          {/* Color Filter */}
-          <div className="card space-y-3">
-            <h2 className="font-semibold text-sm uppercase tracking-wide text-zinc-400">Color Filter</h2>
-            <div className="grid grid-cols-3 sm:grid-cols-6 gap-2">
-              {filterPresets.map(f => {
-                const isSelected = selectedFilter === f.id
-                // Simulate FFmpeg eq filter with CSS — brightness offset → multiplier
-                const cssFilter = f.id === "none" ? "none" : [
-                  f.contrast    !== 1.0  ? `contrast(${f.contrast})`           : "",
-                  f.saturation  !== 1.0  ? `saturate(${f.saturation})`         : "",
-                  f.brightness  !== 0.0  ? `brightness(${1 + f.brightness})`   : "",
-                  f.gamma       !== 1.0  ? `brightness(${1 / f.gamma})`        : "",
-                ].filter(Boolean).join(" ") || "none"
-
-                return (
-                  <button
-                    key={f.id}
-                    onClick={() => setSelectedFilter(f.id)}
-                    className={`rounded-xl overflow-hidden border-2 transition-all flex flex-col
-                      ${isSelected ? "border-brand-500 shadow-md shadow-brand-500/20" : "border-zinc-800 hover:border-zinc-600"}`}
-                  >
-                    {/* Thumbnail preview with CSS filter applied */}
-                    <div className="relative w-full aspect-video overflow-hidden bg-zinc-900">
-                      {thumbUrl ? (
-                        <img
-                          src={thumbUrl}
-                          alt=""
-                          className="w-full h-full object-cover"
-                          style={{ filter: cssFilter }}
-                        />
-                      ) : (
-                        <div
-                          className="w-full h-full"
-                          style={{
-                            filter: cssFilter,
-                            background: "linear-gradient(135deg, #1a1a2e 0%, #16213e 40%, #0f3460 100%)",
-                          }}
-                        />
-                      )}
-                    </div>
-                    {/* Label */}
-                    <span className={`text-xs py-1.5 text-center font-medium transition-colors
-                      ${isSelected ? "text-brand-400 bg-brand-600/10" : "text-zinc-400"}`}>
-                      {f.label ?? f.id}
-                    </span>
-                  </button>
-                )
-              })}
+          {/* Grade warna (resep) */}
+          <div className="card space-y-2">
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold text-sm uppercase tracking-wide text-zinc-400">Grade Warna</h2>
+              <button className="text-xs text-zinc-500 hover:text-zinc-300" onClick={() => setGrade(NEUTRAL_GRADE)}>reset</button>
             </div>
+            {([
+              ["contrast", "Kontras", 0.85, 1.4, 0.01],
+              ["saturation", "Saturasi", 0.6, 1.5, 0.01],
+              ["brightness", "Kecerahan", -0.1, 0.1, 0.005],
+              ["gamma", "Gamma", 0.8, 1.2, 0.01],
+              ["warmth", "Dingin ↔ Hangat", -1, 1, 0.05],
+              ["tint", "Magenta ↔ Hijau", -1, 1, 0.05],
+            ] as const).map(([k, label, min, max, step]) => (
+              <label key={k} className="flex items-center justify-between gap-3 text-sm">
+                <span className="text-zinc-400 w-32">{label}</span>
+                <input type="range" min={min} max={max} step={step} value={grade[k]}
+                  onChange={e => setGrade(g => ({ ...g, [k]: Number(e.target.value) }))} className="flex-1 accent-brand-500" />
+                <span className="w-12 text-right font-mono text-xs text-zinc-300">{grade[k].toFixed(2)}</span>
+              </label>
+            ))}
           </div>
 
           {/* SFX */}
@@ -521,6 +429,53 @@ export function EditorPage() {
                           {autoPlan.music?.title && <> · musik: {autoPlan.music.title}</>}
                         </p>
                       )}
+                      {autoPlan.rhythm && (
+                        <div className="text-zinc-500">
+                          Ritme: {autoPlan.rhythm.count} perubahan · rata-rata tiap {autoPlan.rhythm.avg_interval.toFixed(1)}s
+                          · celah terpanjang <span className={autoPlan.rhythm.max_gap >= 6 ? "text-amber-400" : ""}>
+                            {autoPlan.rhythm.max_gap.toFixed(1)}s</span>
+                          {autoPlan.rhythm.gaps.length > 0 && (
+                            <span> · celah: {autoPlan.rhythm.gaps.map((g, i) => (
+                              <span key={i} title="waktu di video hasil"
+                                className={`mr-1 ${g.long ? "text-amber-400" : "text-zinc-400"}`}>
+                                {g.s.toFixed(0)}–{g.e.toFixed(0)}s
+                              </span>
+                            ))}</span>
+                          )}
+                        </div>
+                      )}
+                      {!!autoPlan.transitions?.length && (
+                        <p className="text-zinc-500" title={autoPlan.transitions.map(t =>
+                          `${t.t.toFixed(1)}s ${t.from}→${t.to}: ${t.placed ? "whoosh" : "dilewati, " + t.reason}`).join("\n")}>
+                          Whoosh transisi: {autoPlan.transitions.filter(t => t.placed).length} dipasang
+                          {autoPlan.transitions.some(t => !t.placed) &&
+                            <> · {autoPlan.transitions.filter(t => !t.placed).length} dilewati</>}
+                        </p>
+                      )}
+                      {!!autoPlan.build_ups?.length && (
+                        <p className="text-zinc-500">
+                          Build-up: {autoPlan.build_ups.filter(b => b.placed).map(b => `${b.t.toFixed(1)}s`).join(", ") || "tidak ada"}
+                        </p>
+                      )}
+                      {!!autoPlan.gap_fills?.length && (
+                        <p className="text-zinc-500" title={autoPlan.gap_fills.map(g =>
+                          `celah ${g.gap[0].toFixed(1)}–${g.gap[1].toFixed(1)}s: ${g.action}${g.word ? ` di "${g.word}"` : ""}`).join("\n")}>
+                          Isi celah otomatis: {autoPlan.gap_fills.filter(g => g.t != null).length}×
+                          ({autoPlan.gap_fills.filter(g => g.t != null).map(g => g.action).join(", ")})
+                        </p>
+                      )}
+                      {(!!autoPlan.visual_transitions?.length || !!autoPlan.emojis?.length || !!autoPlan.name_labels?.length) && (
+                        <p className="text-zinc-500">
+                          {!!autoPlan.visual_transitions?.length && <>Transisi visual: {autoPlan.visual_transitions.length}× </>}
+                          {!!autoPlan.emojis?.length && <>· Emoji: {autoPlan.emojis.map(e => `${e.emoji} ${e.t.toFixed(0)}s`).join(" ")} </>}
+                          {!!autoPlan.name_labels?.length && <>· Label: {autoPlan.name_labels.map(l => l.name).join(", ")}</>}
+                        </p>
+                      )}
+                      {!!autoPlan.music_moments?.length && (
+                        <p className="text-zinc-500">
+                          Musik mengikuti momen: {autoPlan.music_moments.map(m => `${m.kind} ${m.t.toFixed(0)}s`).join(" · ")}
+                        </p>
+                      )}
                       {autoPlan.music?.credit && (
                         <p className="text-amber-400">Wajib cantumkan di caption: {autoPlan.music.credit}</p>
                       )}
@@ -593,6 +548,8 @@ export function EditorPage() {
               )}
             </div>
           </div>
+
+          {isDone && renderId && <UploadPanel renderId={renderId} />}
         </>
       )}
     </div>

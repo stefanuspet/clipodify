@@ -1,0 +1,55 @@
+{
+  "id": "testing_b73f6c5b",
+  "name": "testing",
+  "recipe": {
+    "name": "testing",
+    "font": {
+      "family": "Fredoka",
+      "weight": "400"
+    },
+    "size": 105,
+    "case": "upper",
+    "letter_spacing": 0,
+    "words_per_line": 3,
+    "color_mode": "single",
+    "fill_colors": [
+      "#FFFFFF"
+    ],
+    "outline": {
+      "color": "#000000",
+      "width": 0.12
+    },
+    "shadow": {
+      "color": "#000000",
+      "opacity": 0.5,
+      "distance": 0.03
+    },
+    "box": {
+      "enabled": false,
+      "color": "#000000",
+      "opacity": 0.65,
+      "padding": 0.18
+    },
+    "active_word": {
+      "mode": "color",
+      "color": "#FFE600",
+      "scale": 1.12
+    },
+    "highlight": {
+      "color": "#FFE600",
+      "scale": 1.15
+    },
+    "animation": {
+      "type": "pop",
+      "from_scale": 60,
+      "overshoot": 112,
+      "duration_ms": 180
+    },
+    "position": "bottom"
+  },
+  "created_by": "user",
+  "favorite": true,
+  "notes": "cocok untuk klip motivasi deep",
+  "created_at": "2026-11-19T14:55:23",
+  "updated_at": "2026-11-19T14:55:23"
+}

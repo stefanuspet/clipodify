@@ -1,0 +1,55 @@
+{
+  "id": "insight_clean_bb6a20a4",
+  "name": "Insight Clean",
+  "recipe": {
+    "name": "Insight Clean",
+    "font": {
+      "family": "Poppins",
+      "weight": "700"
+    },
+    "size": 105,
+    "case": "upper",
+    "letter_spacing": 1,
+    "words_per_line": 3,
+    "color_mode": "single",
+    "fill_colors": [
+      "#FFFFFF"
+    ],
+    "outline": {
+      "color": "#000000",
+      "width": 0.18
+    },
+    "shadow": {
+      "color": "#000000",
+      "opacity": 0.5,
+      "distance": 0.03
+    },
+    "box": {
+      "enabled": false,
+      "color": "#000000",
+      "opacity": 0.6,
+      "padding": 0.15
+    },
+    "active_word": {
+      "mode": "color",
+      "color": "#FFE600",
+      "scale": 1.08
+    },
+    "highlight": {
+      "color": "#FF3B6B",
+      "scale": 1.15
+    },
+    "animation": {
+      "type": "slide_up",
+      "from_scale": 90,
+      "overshoot": 105,
+      "duration_ms": 150
+    },
+    "position": "bottom"
+  },
+  "created_by": "gemini",
+  "favorite": false,
+  "notes": "Dibuat Gemini untuk kandidat 258",
+  "created_at": "2026-11-19T15:10:58",
+  "updated_at": "2026-11-19T15:10:58"
+}

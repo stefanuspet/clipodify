@@ -214,3 +214,94 @@ def advise(videos: list[dict], api_key: str | None = None) -> str:
     if not text:
         raise Exception("Gemini tidak mengembalikan teks. Coba lagi.")
     return text
+
+
+# ------------------------------------------------------------------ saran slot (Fase 9-2)
+
+SLOT_MIN_GAP_MINUTES = 120        # jarak aman ke video lain (data: <60 menit → video "mati")
+SLOT_MAX_PER_DAY = 3
+SLOT_HOURS = range(6, 24)         # jam lokal yang dipertimbangkan
+BUCKET_HOURS = 3
+MIN_BUCKET_N = 2                  # di bawah ini blok jam dianggap belum ada datanya
+
+
+def _bucket(hour: int) -> int:
+    return hour // BUCKET_HOURS * BUCKET_HOURS
+
+
+def hour_performance(videos: list[dict], offset_hours: int = CHANNEL_TZ_OFFSET) -> dict:
+    """Median views per blok 3 jam, dari upload yang TIDAK berdempet (≥60 menit dari sebelumnya)."""
+    import statistics
+    a = analyze(videos, offset_hours)
+    fair = [u for u in a["uploads"] if u["gap_minutes"] is None or u["gap_minutes"] >= CLOSE_UPLOAD_MINUTES]
+    groups: dict[int, list[int]] = {}
+    for u in fair:
+        groups.setdefault(_bucket(u["hour"]), []).append(u["views"])
+    overall = statistics.median([u["views"] for u in fair]) if fair else 0
+    return {
+        "overall_median": overall,
+        "n_videos": len(fair),
+        "buckets": {b: {"n": len(v), "median": statistics.median(v)} for b, v in sorted(groups.items())},
+    }
+
+
+def suggest_slots(videos: list[dict], taken_utc: list[datetime], now: datetime | None = None,
+                  count: int = 3, days: int = 7, offset_hours: int = CHANNEL_TZ_OFFSET) -> dict:
+    """Slot tayang berikutnya: blok jam dengan median views tertinggi, berjarak aman dari video lain.
+
+    taken_utc: waktu tayang video yang sudah ada/terjadwal (UTC, aware).
+    """
+    tz = timezone(timedelta(hours=offset_hours))
+    now = (now or datetime.now(timezone.utc)).astimezone(tz)
+    perf = hour_performance(videos, offset_hours)
+    base = perf["overall_median"] or 1
+    taken = sorted(t.astimezone(tz) for t in taken_utc)
+
+    def score(hour: int) -> tuple[float, str]:
+        b = perf["buckets"].get(_bucket(hour))
+        lo, hi = _bucket(hour), _bucket(hour) + BUCKET_HOURS
+        if not b or b["n"] < MIN_BUCKET_N:
+            return 1.0, f"jam {lo:02d}–{hi:02d}: belum cukup data (dianggap rata-rata)"
+        return b["median"] / base, f"jam {lo:02d}–{hi:02d}: median {int(b['median']):,} views dari {b['n']} video".replace(",", ".")
+
+    candidates = []
+    start = now + timedelta(minutes=60)          # upload butuh waktu; YouTube minta ≥15 menit ke depan
+    for d in range(days):
+        day = (now + timedelta(days=d)).date()
+        for h in SLOT_HOURS:
+            slot = datetime(day.year, day.month, day.day, h, 0, tzinfo=tz)
+            if slot < start:
+                continue
+            s, why = score(h)
+            candidates.append((slot, s, why))
+
+    chosen: list[tuple] = []
+    # Skor dalam 15% dari yang terbaik dianggap setara (sampel per blok kecil) → pilih yang paling cepat;
+    # sisanya menyusul. Jaga jarak & batas per hari.
+    best = max((c[1] for c in candidates), default=1.0)
+    good = sorted((c for c in candidates if c[1] >= best * 0.85), key=lambda c: c[0])
+    rest = sorted((c for c in candidates if c[1] < best * 0.85), key=lambda c: (-c[1], c[0]))
+    for slot, s, why in good + rest:
+        busy = taken + [c[0] for c in chosen]
+        if any(abs((slot - t).total_seconds()) < SLOT_MIN_GAP_MINUTES * 60 for t in busy):
+            continue
+        if sum(1 for t in busy if t.date() == slot.date()) >= SLOT_MAX_PER_DAY:
+            continue
+        chosen.append((slot, s, why))
+        if len(chosen) >= count:
+            break
+    chosen.sort(key=lambda c: c[0])
+    notes = ["Saran dari waktu upload & hasil video channel sendiri — BUKAN data kapan penonton online "
+             "(itu hanya di YouTube Studio), dan pengaruh jam tidak bisa dipisahkan dari isi video."]
+    meds = [b["median"] for b in perf["buckets"].values() if b["n"] >= MIN_BUCKET_N]
+    if len(meds) >= 2 and max(meds) / max(min(meds), 1) < 1.5:
+        notes.append(f"Beda antar jam kecil ({int(min(meds)):,}–{int(max(meds)):,} views median) — di data ini jam "
+                     "tayang tidak terlalu berpengaruh; yang penting jarak antar video.".replace(",", "."))
+    if perf["n_videos"] < 15:
+        notes.append(f"Baru {perf['n_videos']} video yang bisa dinilai — anggap ini pola awal untuk diuji.")
+    return {
+        "slots": [{"local": c[0].strftime("%Y-%m-%dT%H:%M"), "iso": c[0].isoformat(), "score": round(c[1], 2),
+                   "reason": c[2]} for c in chosen],
+        "performance": perf, "min_gap_minutes": SLOT_MIN_GAP_MINUTES, "max_per_day": SLOT_MAX_PER_DAY,
+        "offset_hours": offset_hours, "notes": notes,
+    }

@@ -9,6 +9,8 @@ import { MetaPage }     from "./pages/MetaPage"
 import { EditorPage }   from "./pages/EditorPage"
 import { SettingsPage } from "./pages/SettingsPage"
 import { AssetsPage }   from "./pages/AssetsPage"
+import { LearningPage } from "./pages/LearningPage"
+import { StudioPage }   from "./pages/StudioPage"
 
 export default function App() {
   return (
@@ -26,6 +28,8 @@ export default function App() {
             <Route path="/editor"   element={<EditorPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="/assets"   element={<AssetsPage />} />
+            <Route path="/learning" element={<LearningPage />} />
+            <Route path="/studio"   element={<StudioPage />} />
           </Routes>
         </main>
       </div>

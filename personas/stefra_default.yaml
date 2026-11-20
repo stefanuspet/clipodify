@@ -1,0 +1,58 @@
+# Persona editing channel. Dibaca Gemini sebagai panduan gaya; bagian `limits`
+# dipaksakan validator (tidak bisa dilanggar Gemini).
+# DRAF AWAL — sesuaikan dengan karakter channel kamu.
+
+id: stefra_default
+name: "Stefra — santai, receh, hangat"
+audience: "18–30 tahun, Indonesia, menonton sambil scroll"
+voice: "bahasa gaul ringan, tidak menggurui, tidak lebay"
+goal: "penonton menandai teman atau menulis pendapatnya di komentar"
+pace: medium            # slow | medium | fast
+
+style:
+  subtitle: "mulai dari gaya favorit di Studio Subtitle; boleh variasi warna/animasi per klip"
+  palette:
+    text: "#FFFFFF"
+    highlight: "#FFE000"
+    accent: "#FF3B6B"
+  grade: "hangat dan sedikit kontras (warmth 0.1–0.3); jangan berlebihan"
+  sfx_density: medium   # none | low | medium | high
+  music: "pelan di belakang suara; playful untuk lucu, inspirational/cinematic untuk nasihat"
+  cuts: "padatkan jeda panjang; jangan potong di tengah punchline atau kalimat kunci"
+  text_tone: "pendek, huruf besar, seperti teman yang nyeletuk"
+
+always:
+  - "akhiri dengan satu pertanyaan spesifik yang memancing komentar"
+  - "highlight kata yang paling bikin orang berhenti scroll"
+
+never:
+  - "SFX di atas kalimat serius atau sedih"
+  - "teks yang mengulang subtitle kata per kata"
+  - "pertanyaan generik seperti 'setuju gak?' atau 'gimana menurut kalian?'"
+
+limits:
+  max_sfx_per_10s: 2
+  min_sfx_gap_s: 1.5
+  max_text_overlays: 3
+  max_effects: 3
+  highlight_every_n_words: 8        # maks 1 kata highlight per N kata
+  no_sfx_in_beats: [laugh, emotional_peak]
+  max_zoom_per_10s: 1
+  max_cut_ratio: 0.30                # total jeda/potongan yang boleh dibuang
+  transition_sfx: true               # whoosh otomatis saat layout grid berganti (8A-2)
+  transition_sfx_volume: 0.45        # pelan; ini lapisan halus, bukan efek utama
+  max_build_ups: 2                   # riser → hit per klip (8A-3)
+  fill_gaps: true                    # isi otomatis celah tanpa perubahan (8A-4)
+  max_gap_s: 6.0                     # celah lebih panjang dari ini diisi (kecuali momen tenang)
+  transition_visual: zoom            # 8D-1 transisi di cut ganti layout: zoom | flash | mix | none
+  transition_zoom: 1.06              # seberapa besar zoom-in sesaat setelah cut
+  max_emojis: 3                      # 8D-2 stiker emoji per klip
+  name_labels: true                  # 8D-3 label nama saat pembicara pertama tampil
+  progress_bar: true                 # 8D-4 progress bar tipis di atas
+  music_follow_beats: true           # 8E-2 musik naik di build, berhenti sebelum build-up, turun di momen haru
+
+# Plan yang terbukti bagus (path ke tmp/edit/<id>/plan_*.json) dipakai sebagai contoh
+# untuk Gemini. Isi setelah ada data performa (plan.md Fase 6).
+examples:
+  - tmp/edit/258/plan_p3179506.json
+  - tmp/edit/258/plan_3b88313f.json

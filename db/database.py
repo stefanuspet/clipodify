@@ -117,6 +117,48 @@ CREATE TABLE IF NOT EXISTS meta_auth (
     connected_at  DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
+-- Render hasil Auto Edit (Gemini) + video YouTube tempat ia diupload, supaya
+-- pilihan edit bisa dibandingkan dengan reaksi penonton (share, komentar, retensi).
+CREATE TABLE IF NOT EXISTS edit_renders (
+    render_id        TEXT PRIMARY KEY,
+    candidate_id     INTEGER,
+    candidate_title  TEXT,
+    created_at       TEXT,
+    output_path      TEXT,
+    plan_file        TEXT,
+    persona_id       TEXT,
+    persona_version  TEXT,
+    model            TEXT,
+    intent           TEXT,
+    features         TEXT,
+    yt_video_id      TEXT,
+    linked_at        TEXT
+);
+
+-- Pengaturan/kunci integrasi selain Gemini (mis. Google Fonts Developer API).
+CREATE TABLE IF NOT EXISTS app_settings (
+    key    TEXT PRIMARY KEY,
+    value  TEXT
+);
+
+-- Upload ke YouTube (Fase 9). publish_at = jadwal tayang (UTC) bila dijadwalkan.
+CREATE TABLE IF NOT EXISTS yt_uploads (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    render_id     TEXT,
+    candidate_id  INTEGER,
+    file_path     TEXT,
+    title         TEXT,
+    description   TEXT,
+    tags          TEXT,
+    publish_at    TEXT,
+    status        TEXT DEFAULT 'queued',
+    progress      REAL DEFAULT 0,
+    video_id      TEXT,
+    error         TEXT,
+    created_at    TEXT DEFAULT (datetime('now')),
+    uploaded_at   TEXT
+);
+
 CREATE INDEX IF NOT EXISTS idx_segments_job ON segments(job_id);
 CREATE INDEX IF NOT EXISTS idx_candidates_job ON candidates(job_id);
 """
@@ -188,6 +230,9 @@ MIGRATIONS = [
     ("meta_auth", "fb_token", "TEXT"),
     ("meta_auth", "fb_page_id", "TEXT"),
     ("meta_auth", "fb_page_name", "TEXT"),
+    # Render yang disembunyikan user (mis. render tes). Tidak dihapus supaya backfill
+    # dari file plan tidak mendaftarkannya lagi, dan bisa dikembalikan.
+    ("edit_renders", "hidden", "INTEGER DEFAULT 0"),
 ]
 
 
@@ -714,3 +759,98 @@ def update_candidate_status(candidate_id: int, status: str, output_path: str = N
 
 
 init_db()
+
+
+# ---------------------------------------------------------------- edit renders (Fase 6)
+
+def save_edit_render(r: dict) -> None:
+    with _connect() as conn:
+        conn.execute(
+            """INSERT OR IGNORE INTO edit_renders (render_id, candidate_id, candidate_title, created_at,
+                   output_path, plan_file, persona_id, persona_version, model, intent, features)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+            (r["render_id"], r["candidate_id"], r.get("candidate_title"), r["created_at"],
+             r.get("output_path"), r.get("plan_file"), r.get("persona_id"), r.get("persona_version"),
+             r.get("model"), r.get("intent"), json.dumps(r.get("features") or {}, ensure_ascii=False)),
+        )
+
+
+def list_edit_renders() -> list[dict]:
+    with _connect() as conn:
+        rows = conn.execute(
+            "SELECT * FROM edit_renders WHERE COALESCE(hidden, 0) = 0 ORDER BY created_at DESC"
+        ).fetchall()
+    out = []
+    for row in rows:
+        d = dict(row)
+        d["features"] = json.loads(d["features"] or "{}")
+        out.append(d)
+    return out
+
+
+def known_edit_render_ids() -> set[str]:
+    """Semua render_id, termasuk yang disembunyikan (dipakai backfill)."""
+    with _connect() as conn:
+        return {r[0] for r in conn.execute("SELECT render_id FROM edit_renders")}
+
+
+def hide_edit_render(render_id: str, hidden: bool = True) -> None:
+    with _connect() as conn:
+        conn.execute("UPDATE edit_renders SET hidden = ? WHERE render_id = ?", (1 if hidden else 0, render_id))
+
+
+def link_edit_render(render_id: str, video_id: str | None) -> None:
+    with _connect() as conn:
+        conn.execute(
+            "UPDATE edit_renders SET yt_video_id = ?, linked_at = CASE WHEN ? IS NULL THEN NULL "
+            "ELSE datetime('now') END WHERE render_id = ?",
+            (video_id, video_id, render_id),
+        )
+
+
+# ---------------------------------------------------------------- app settings
+
+def get_setting(key: str, default: str | None = None) -> str | None:
+    with _connect() as conn:
+        row = conn.execute("SELECT value FROM app_settings WHERE key = ?", (key,)).fetchone()
+    return row["value"] if row and row["value"] else default
+
+
+def set_setting(key: str, value: str | None) -> None:
+    with _connect() as conn:
+        if value:
+            conn.execute("INSERT INTO app_settings (key, value) VALUES (?, ?) "
+                         "ON CONFLICT(key) DO UPDATE SET value = excluded.value", (key, value))
+        else:
+            conn.execute("DELETE FROM app_settings WHERE key = ?", (key,))
+
+
+# ---------------------------------------------------------------- yt uploads (Fase 9)
+
+def create_yt_upload(rec: dict) -> int:
+    with _connect() as conn:
+        cur = conn.execute(
+            """INSERT INTO yt_uploads (render_id, candidate_id, file_path, title, description, tags, publish_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?)""",
+            (rec.get("render_id"), rec.get("candidate_id"), rec["file_path"], rec["title"],
+             rec.get("description", ""), json.dumps(rec.get("tags") or [], ensure_ascii=False), rec.get("publish_at")))
+        return cur.lastrowid
+
+
+def update_yt_upload(upload_id: int, **fields) -> None:
+    if not fields:
+        return
+    cols = ", ".join(f"{k} = ?" for k in fields)
+    with _connect() as conn:
+        conn.execute(f"UPDATE yt_uploads SET {cols} WHERE id = ?", (*fields.values(), upload_id))
+
+
+def list_yt_uploads(limit: int = 100) -> list[dict]:
+    with _connect() as conn:
+        rows = conn.execute("SELECT * FROM yt_uploads ORDER BY id DESC LIMIT ?", (limit,)).fetchall()
+    out = []
+    for r in rows:
+        d = dict(r)
+        d["tags"] = json.loads(d["tags"] or "[]")
+        out.append(d)
+    return out

@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react"
 import { Tv2, RefreshCw, Unlink, Loader2, TrendingUp } from "lucide-react"
 import { api } from "../lib/api"
+import { UploadQueue } from "../components/UploadQueue"
+import { BatchUpload } from "../components/BatchUpload"
 
-type YtStatus = { connected: boolean; channel_title?: string; channel_id?: string }
+type YtStatus = { connected: boolean; channel_title?: string; channel_id?: string; upload_scope?: boolean }
 type Video = { video_id: string; title: string; published_at: string; view_count: number; like_count: number }
 
 export function YouTubePage() {
@@ -32,6 +34,13 @@ export function YouTubePage() {
     } finally { setLoading(false) }
   }
 
+  async function reconnect() {
+    const { data } = await api.post("/api/youtube/reconnect-url", {
+      base_url: import.meta.env.VITE_API_URL ?? "http://localhost:8000",
+    })
+    window.location.href = data.auth_url
+  }
+
   async function disconnect() {
     await api.delete("/api/youtube/disconnect")
     setStatus({ connected: false }); setVideos([])
@@ -59,6 +68,11 @@ export function YouTubePage() {
               <p className="text-zinc-400 text-sm">{status.channel_id}</p>
             </div>
             <div className="flex gap-2">
+              {!status.upload_scope && (
+                <button className="btn-primary" onClick={reconnect} title="Tambah izin upload video">
+                  Hubungkan ulang (izin upload)
+                </button>
+              )}
               <button className="btn-ghost" onClick={refresh} disabled={loading}>
                 {loading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
                 Refresh
@@ -76,6 +90,16 @@ export function YouTubePage() {
           </div>
         )}
       </div>
+
+      {status?.connected && (
+        <>
+          {status.upload_scope
+            ? <p className="text-xs text-green-400">Izin upload aktif — upload & jadwal bisa dari halaman Editor.</p>
+            : <p className="text-xs text-amber-400">Izin upload belum aktif. Klik "Hubungkan ulang" sekali (pilih akun channel, setujui izin upload).</p>}
+          <BatchUpload canUpload={!!status.upload_scope} />
+          <UploadQueue />
+        </>
+      )}
 
       {status?.connected && videos.length > 0 && (
         <>

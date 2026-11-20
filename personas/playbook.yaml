@@ -1,0 +1,110 @@
+# Playbook: resep edit per intent × beat. Data, bukan kode — ubah bebas tanpa coding.
+# Persona boleh menimpa (misalnya melarang SFX sama sekali).
+
+beat_types:
+  hook: "1–3 detik pertama yang menahan penonton"
+  setup: "pembangunan konteks sebelum lelucon/poin"
+  punchline: "kalimat atau kata yang membuat lucu"
+  laugh: "orang di video tertawa (cek emosi audio 'laughing')"
+  reaction: "reaksi orang lain terhadap ucapan pembicara"
+  build: "ketegangan/energi naik menuju poin utama"
+  key_line: "kalimat inti yang paling layak dikutip"
+  emotional_peak: "puncak emosi sedih/haru/serius"
+  twist: "pembalikan arah atau kejutan"
+  question: "pertanyaan yang dilontarkan di video"
+  payoff: "penutup yang menjawab/menuntaskan"
+  filler: "bagian lemah, basa-basi"
+
+intents:
+  funny:
+    subtitle: "energik — 1–2 kata per layar, animasi pop/bounce, warna berganti per kata"
+    grade: "hangat + saturasi sedikit naik (warmth 0.2, saturation 1.15)"
+    beats:
+      punchline: "SFX pop/tap di AKHIR kata terakhir punchline (edge=end, offset 0.03–0.15); highlight kata lucunya"
+      laugh: "TANPA SFX (tawa asli sudah cukup); efek 'laughing' boleh sepanjang tawa"
+      setup: "bersih, tanpa SFX supaya punchline terasa"
+      twist: "SFX glitch/whoosh tepat di kata twist; 'scratch' bila ucapannya absurd/bikin berhenti ('tunggu, apa?')"
+      reaction: "'buzzer' untuk alasan ngeles/klaim yang langsung dibantah; 'ding' untuk tebakan/jawaban yang tepat"
+    text: "emphasis hanya bila leluconnya butuh konteks; pertanyaan penutup yang bikin orang tag teman"
+    zoom: "punch 1.15 di punchline bila shot 1 orang"
+    music: "playful/upbeat, energi mid, pelan"
+    cuts: "padatkan jeda, KECUALI diam canggung yang jadi bagian lelucon"
+
+  motivation:
+    subtitle: "tenang dan terbaca — 3–4 kata, fade/slide_up, kata aktif berwarna, highlight inti kalimat"
+    grade: "sinematik: kontras naik sedikit, saturasi turun sedikit (contrast 1.15, saturation 0.9, warmth 0.1)"
+    beats:
+      build: "SFX rise menjelang key_line (anchor ke awal kata pertama key_line, offset -0.6)"
+      key_line: "impact lembut di kata terakhir; highlight inti kalimat; teks emphasis berisi intinya"
+      emotional_peak: "tanpa SFX"
+    text: "emphasis = kalimat kunci yang bisa di-screenshot; pertanyaan penutup tentang pengalaman penonton"
+    zoom: "slow 1.08 sepanjang key_line"
+    music: "inspirational, naik pelan"
+
+  insight:
+    subtitle: "3–4 kata, kata aktif berwarna (active_word color/scale), animasi halus"
+    grade: "netral atau sinematik ringan (contrast 1.1)"
+    beats:
+      key_line: "highlight kata kunci; SFX ding/impact lembut maksimal satu"
+      twist: "SFX whoosh di kata pembalik"
+    text: "emphasis = insight dalam ≤6 kata; pertanyaan penutup yang memancing opini"
+    zoom: "slow 1.06 di key_line"
+    music: "chill/ambient, sangat pelan"
+
+  story:
+    subtitle: "3–4 kata, fade atau slide_up, rapi; kotak latar boleh"
+    grade: "hangat ringan (warmth 0.15)"
+    beats:
+      twist: "satu SFX whoosh di titik balik cerita"
+      payoff: "bersih"
+    text: "hook_title bila awal cerita butuh konteks"
+    music: "chill/ambient"
+    hook: "teaser dari klimaks cerita bila pembukaannya lambat"
+
+  debate:
+    subtitle: "2–3 kata, pop tegas, aksen merah/oranye di highlight"
+    grade: "kontras naik, saturasi naik (contrast 1.2, saturation 1.2)"
+    beats:
+      reaction: "impact/whoosh jarang, di pergantian pembicara yang paling panas"
+      key_line: "highlight kata paling keras; 'hit' di kata paling tegas"
+    text: "pertanyaan penutup yang meminta penonton memilih kubu (spesifik, bukan 'setuju gak')"
+    zoom: "punch di kalimat paling panas"
+    music: "tense pelan, atau tanpa musik"
+
+  rant:
+    subtitle: "1–2 kata, pop besar, highlight merah"
+    grade: "kontras naik (contrast 1.2), sedikit hangat"
+    beats:
+      build: "boleh rise"
+      key_line: "impact di kata terkeras"
+    text: "emphasis = kalimat paling pedas"
+    zoom: "punch di kata terkeras"
+    music: "tense atau tanpa musik"
+
+  reveal:
+    subtitle: "wipe atau pop, kata reveal di-highlight besar"
+    grade: "sinematik (contrast 1.15, saturation 0.9)"
+    beats:
+      build: "rise sebelum reveal"
+      twist: "impact atau 'boom' (hanya reveal terbesar) TEPAT di kata reveal; highlight kata itu"
+    text: "teks 'TUNGGU…' singkat sebelum reveal bila cocok"
+    zoom: "punch tepat di kata reveal"
+    music: "cinematic/tense; boleh bass_drop di reveal"
+    hook: "JANGAN teaser yang membocorkan reveal"
+
+  emotional:
+    subtitle: "3–4 kata, fade lembut, tanpa warna berganti"
+    grade: "dingin dan redup (warmth -0.25, saturation 0.85, brightness -0.03)"
+    beats:
+      emotional_peak: "tanpa SFX, tanpa efek lucu"
+    text: "minim; pertanyaan penutup yang lembut"
+    zoom: "slow sangat halus atau tidak ada"
+    music: "sad/ambient, sangat pelan"
+    cuts: "JANGAN potong jeda di momen haru"
+
+  quotable:
+    subtitle: "3–4 kata, kotak latar atau outline tebal, rapi"
+    grade: "sinematik ringan"
+    beats:
+      key_line: "teks emphasis berisi kutipannya; highlight 1 kata terkuat"
+    text: "kutipan yang bisa di-screenshot"

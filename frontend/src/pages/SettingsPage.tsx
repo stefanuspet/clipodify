@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 import { Settings, Plus, Trash2, CheckCircle2, Loader2 } from "lucide-react"
 import { api } from "../lib/api"
 
-type ApiKey = { id: number; name: string; key_preview: string; is_active: boolean; model?: string }
+type ApiKey = { id: number; name: string; key_masked: string; is_active: boolean }
 type TmpUsage = { file_count: number; total_mb: number }
 
 export function SettingsPage() {
@@ -12,19 +12,43 @@ export function SettingsPage() {
   const [adding, setAdding] = useState(false)
   const [tmp, setTmp] = useState<TmpUsage | null>(null)
   const [clearingTmp, setClearingTmp] = useState(false)
+  const [keyMsg, setKeyMsg] = useState("")
+  const [gfKey, setGfKey] = useState("")
+  const [gfState, setGfState] = useState<{ set: boolean; masked: string } | null>(null)
+  const [gfMsg, setGfMsg] = useState("")
 
   useEffect(() => {
     api.get("/api/settings/keys").then(r => setKeys(r.data))
     api.get("/api/settings/tmp").then(r => setTmp(r.data))
+    api.get("/api/settings/integrations").then(r => setGfState(r.data.google_fonts_api_key))
   }, [])
+
+  async function saveGfKey(value: string | null) {
+    setGfMsg("")
+    const { data } = await api.put("/api/settings/integrations", { google_fonts_api_key: value })
+    setGfState(data.google_fonts_api_key); setGfKey("")
+    if (value) {
+      try {
+        const { data: t } = await api.post("/api/settings/integrations/google-fonts/test")
+        setGfMsg(`Terhubung — ${t.families} font tersedia.`)
+      } catch (e: any) { setGfMsg(e?.response?.data?.detail ?? "Key ditolak.") }
+    }
+  }
 
   async function addKey() {
     if (!name.trim() || !key.trim()) return
-    setAdding(true)
+    setAdding(true); setKeyMsg("")
     try {
-      await api.post("/api/settings/keys", { name: name.trim(), key: key.trim() })
+      const { data: added } = await api.post("/api/settings/keys", { name: name.trim(), key_value: key.trim() })
       const { data } = await api.get("/api/settings/keys")
       setKeys(data); setName(""); setKey("")
+      try {
+        const { data: t } = await api.post(`/api/settings/keys/${added.id}/test`)
+        setKeyMsg(t.ok ? `Key "${added.name}" tersimpan dan berfungsi.` : `Key tersimpan, tapi uji gagal: ${t.message}`)
+      } catch { setKeyMsg(`Key "${added.name}" tersimpan (belum bisa diuji).`) }
+    } catch (e: any) {
+      const d = e?.response?.data?.detail
+      setKeyMsg(typeof d === "string" ? d : "Gagal menyimpan key.")
     } finally { setAdding(false) }
   }
 
@@ -63,13 +87,14 @@ export function SettingsPage() {
             {adding ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
           </button>
         </div>
+        {keyMsg && <p className="text-xs text-brand-400">{keyMsg}</p>}
 
         <div className="space-y-1">
           {keys.map(k => (
             <div key={k.id} className={`flex items-center gap-3 px-3 py-2 rounded-lg ${k.is_active ? "bg-brand-600/10 border border-brand-600/30" : "bg-zinc-800"}`}>
               <div className="flex-1 min-w-0">
                 <span className="text-sm font-medium">{k.name}</span>
-                <span className="text-zinc-500 text-xs ml-2">{k.key_preview}</span>
+                <span className="text-zinc-500 text-xs ml-2">{k.key_masked}</span>
               </div>
               {k.is_active && <CheckCircle2 size={14} className="text-green-400 shrink-0" />}
               {!k.is_active && (
@@ -82,6 +107,26 @@ export function SettingsPage() {
           ))}
           {keys.length === 0 && <p className="text-zinc-500 text-sm">Belum ada API key.</p>}
         </div>
+      </section>
+
+      {/* Integrasi */}
+      <section className="card space-y-3">
+        <h2 className="font-semibold">Google Fonts</h2>
+        <p className="text-zinc-400 text-sm">
+          API key dari Google Cloud Console (aktifkan "Web Fonts Developer API"). Dipakai Studio Subtitle & Gemini
+          untuk memilih dari seluruh katalog Google Fonts (semua berlisensi bebas).
+        </p>
+        <p className="text-sm">
+          Status: {gfState?.set ? <span className="text-green-400">terisi ({gfState.masked})</span>
+                                : <span className="text-amber-400">belum diisi — memakai font dasar</span>}
+        </p>
+        <div className="flex gap-2">
+          <input type="password" value={gfKey} onChange={e => setGfKey(e.target.value)} placeholder="AIza…"
+            className="flex-1 bg-zinc-900 border border-zinc-700 rounded px-2 py-1.5 text-sm" />
+          <button className="btn-primary" disabled={!gfKey.trim()} onClick={() => saveGfKey(gfKey.trim())}>Simpan & uji</button>
+          {gfState?.set && <button className="btn-ghost text-red-400" onClick={() => saveGfKey(null)}>Hapus</button>}
+        </div>
+        {gfMsg && <p className="text-xs text-brand-400">{gfMsg}</p>}
       </section>
 
       {/* Tmp usage */}

@@ -1,0 +1,92 @@
+{
+ "Anton-400": {
+  "family": "Anton",
+  "requested": "400",
+  "weight": "400",
+  "path": "/home/justie/Documents/clipodify/assets/fonts/gf/Anton-400.ttf",
+  "ass_name": "Anton",
+  "source": "Google Fonts",
+  "license": "SIL Open Font License / Apache 2.0 (Google Fonts)"
+ },
+ "Montserrat-900": {
+  "family": "Montserrat",
+  "requested": "900",
+  "weight": "900",
+  "path": "/home/justie/Documents/clipodify/assets/fonts/gf/Montserrat-900.ttf",
+  "ass_name": "Montserrat Black",
+  "source": "Google Fonts",
+  "license": "SIL Open Font License / Apache 2.0 (Google Fonts)"
+ },
+ "LuckiestGuy-400": {
+  "family": "Luckiest Guy",
+  "requested": "400",
+  "weight": "400",
+  "path": "/home/justie/Documents/clipodify/assets/fonts/gf/LuckiestGuy-400.ttf",
+  "ass_name": "Luckiest Guy",
+  "source": "Google Fonts",
+  "license": "SIL Open Font License / Apache 2.0 (Google Fonts)"
+ },
+ "Montserrat-800": {
+  "family": "Montserrat",
+  "requested": "800",
+  "weight": "800",
+  "path": "/home/justie/Documents/clipodify/assets/fonts/gf/Montserrat-800.ttf",
+  "ass_name": "Montserrat ExtraBold",
+  "source": "Google Fonts",
+  "license": "SIL Open Font License / Apache 2.0 (Google Fonts)"
+ },
+ "Anton-800": {
+  "family": "Anton",
+  "requested": "800",
+  "weight": "400",
+  "path": "/home/justie/Documents/clipodify/assets/fonts/gf/Anton-400.ttf",
+  "ass_name": "Anton",
+  "source": "Google Fonts",
+  "license": "SIL Open Font License / Apache 2.0 (Google Fonts)"
+ },
+ "Fredoka-400": {
+  "family": "Fredoka",
+  "requested": "400",
+  "weight": "400",
+  "path": "/home/justie/Documents/clipodify/assets/fonts/gf/Fredoka-400.ttf",
+  "ass_name": "Fredoka",
+  "source": "Google Fonts",
+  "license": "SIL Open Font License / Apache 2.0 (Google Fonts)"
+ },
+ "Inter-600": {
+  "family": "Inter",
+  "requested": "600",
+  "weight": "600",
+  "path": "/home/justie/Documents/clipodify/assets/fonts/gf/Inter-600.ttf",
+  "ass_name": "Inter SemiBold",
+  "source": "Google Fonts",
+  "license": "SIL Open Font License / Apache 2.0 (Google Fonts)"
+ },
+ "Montserrat-500": {
+  "family": "Montserrat",
+  "requested": "500",
+  "weight": "500",
+  "path": "/home/justie/Documents/clipodify/assets/fonts/gf/Montserrat-500.ttf",
+  "ass_name": "Montserrat Medium",
+  "source": "Google Fonts",
+  "license": "SIL Open Font License / Apache 2.0 (Google Fonts)"
+ },
+ "Poppins-800": {
+  "family": "Poppins",
+  "requested": "800",
+  "weight": "800",
+  "path": "/home/justie/Documents/clipodify/assets/fonts/gf/Poppins-800.ttf",
+  "ass_name": "Poppins ExtraBold",
+  "source": "Google Fonts",
+  "license": "SIL Open Font License / Apache 2.0 (Google Fonts)"
+ },
+ "Poppins-700": {
+  "family": "Poppins",
+  "requested": "700",
+  "weight": "700",
+  "path": "/home/justie/Documents/clipodify/assets/fonts/gf/Poppins-700.ttf",
+  "ass_name": "Poppins Bold",
+  "source": "Google Fonts",
+  "license": "SIL Open Font License / Apache 2.0 (Google Fonts)"
+ }
+}

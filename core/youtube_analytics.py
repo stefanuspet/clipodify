@@ -28,10 +28,13 @@ from db.database import get_yt_auth, save_yt_auth, update_yt_token
 logger = logging.getLogger(__name__)
 
 # yt-analytics.readonly memberi metrik; youtube.readonly memberi daftar video dan
-# judulnya. Keduanya read-only — tidak ada scope yang bisa mengubah channel.
+# judulnya. youtube.upload (Fase 9) HANYA bisa mengunggah video baru — tidak bisa
+# mengubah/menghapus video lain atau pengaturan channel. Koneksi lama tanpa scope ini
+# perlu dihubungkan ulang sekali.
 SCOPES = [
     "https://www.googleapis.com/auth/yt-analytics.readonly",
     "https://www.googleapis.com/auth/youtube.readonly",
+    "https://www.googleapis.com/auth/youtube.upload",
 ]
 
 DATA_API = "https://www.googleapis.com/youtube/v3"

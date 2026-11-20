@@ -11,6 +11,7 @@ berikutnya. Membedakan keduanya adalah inti modul ini.
 """
 
 import logging
+import os
 import time
 
 from google import genai
@@ -22,6 +23,9 @@ logger = logging.getLogger(__name__)
 
 MAX_RETRIES_PER_MODEL = 2
 RETRY_BACKOFF_SECONDS = 2
+# Tanpa batas waktu, permintaan yang menggantung (server sibuk) membuat job menunggu
+# selamanya dan cadangan model tidak pernah terpicu. Rencana edit normal ±2–4 menit.
+TIMEOUT_SECONDS = int(os.getenv("GEMINI_TIMEOUT_S", "300"))
 
 # Model yang benar-benar mengerjakan panggilan terakhir. Dipakai UI untuk memberi
 # tahu user saat hasil dikerjakan model cadangan — perubahan kualitas tanpa
@@ -88,6 +92,12 @@ def _is_missing_model(message: str) -> bool:
     return "NOT_FOUND" in message or "404" in message
 
 
+def _is_timeout(exc: Exception) -> bool:
+    name = type(exc).__name__.lower()
+    text = str(exc).lower()
+    return "timeout" in name or "timed out" in text or "timeout" in text or "deadline" in text
+
+
 def generate(
     contents,
     config: types.GenerateContentConfig,
@@ -101,7 +111,8 @@ def generate(
     user berhak tahu penyebabnya tanpa harus menebak.
     """
     global LAST_MODEL
-    client = genai.Client(api_key=resolve_api_key(api_key))
+    client = genai.Client(api_key=resolve_api_key(api_key),
+                          http_options=types.HttpOptions(timeout=TIMEOUT_SECONDS * 1000))
     chain = models or model_chain()
     problems: list[str] = []
 
@@ -128,6 +139,14 @@ def generate(
                         "Gemini API key ditolak. Cek key aktif di halaman Settings."
                     ) from e
 
+                # Menggantung sampai batas waktu: mengulang di model yang sama biasanya
+                # menggantung lagi — langsung pindah model berikutnya.
+                if _is_timeout(e):
+                    logger.warning("Model %s tidak menjawab dalam %d dtk, pindah ke berikutnya",
+                                   model, TIMEOUT_SECONDS)
+                    problems.append(f"{model}: tidak menjawab dalam {TIMEOUT_SECONDS} dtk")
+                    break
+
                 if _is_quota_error(message) or _is_missing_model(message):
                     reason = "kuota habis" if _is_quota_error(message) else "tidak tersedia"
                     logger.info("Model %s %s, pindah ke berikutnya", model, reason)
@@ -141,11 +160,18 @@ def generate(
                 logger.warning("Model %s gagal: %s", model, message[:200])
                 problems.append(f"{model}: {message[:80]}")
 
+    hint = ("Kalau semuanya menyebut kuota, jatah harian free tier sudah habis "
+            "— pulih otomatis besok, atau pakai API key lain di halaman Settings.")
+    if problems and all("tidak menjawab" in p or "503" in p or "UNAVAILABLE" in p for p in problems):
+        hint = "Server Gemini sedang sibuk/menggantung. Coba lagi beberapa menit lagi."
+    elif problems and all(any(k in p.lower() for k in ("unreachable", "name or service", "connection",
+                                                        "getaddrinfo", "temporary failure"))
+                          for p in problems):
+        hint = "Tidak ada koneksi internet ke server Gemini. Periksa jaringan lalu coba lagi."
     raise AllModelsExhaustedError(
         "Semua model Gemini menolak permintaan ini.\n"
         + "\n".join(f"- {p}" for p in problems)
-        + "\n\nKalau semuanya menyebut kuota, jatah harian free tier sudah habis "
-        "— pulih otomatis besok, atau pakai API key lain di halaman Settings."
+        + "\n\n" + hint
     )
 
 

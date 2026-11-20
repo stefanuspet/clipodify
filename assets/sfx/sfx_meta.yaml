@@ -1,0 +1,26 @@
+# Metadata SFX. Gemini memilih `tag`; kode memilih file dengan tag itu.
+# File baru di folder ini tanpa entri di sini tetap bisa dipakai lewat tag = nama file.
+
+sfx_pop:       {name: Pop,       tag: pop,       use: "penekanan ringan, punchline kecil, kata highlight", intensity: low,  source: bawaan}
+sfx_tap:       {name: Tap,       tag: tap,       use: "ketukan halus, poin daftar, penekanan sangat ringan", intensity: low,  source: bawaan}
+sfx_whoosh:    {name: Whoosh,    tag: whoosh,    use: "transisi, pergantian topik/pembicara, twist", intensity: mid,  source: bawaan}
+sfx_swoosh:    {name: Swoosh,    tag: whoosh,    use: "transisi, pergantian topik/pembicara, twist", intensity: mid,  source: bawaan}
+sfx_impact:    {name: Impact,    tag: impact,    use: "kata terkeras, kalimat kunci, reveal", intensity: high, source: bawaan}
+sfx_ding:      {name: Ding,      tag: ding,      use: "ide/insight muncul, jawaban benar", intensity: low,  source: bawaan}
+sfx_rise:      {name: Rise,      tag: rise,      use: "nada naik singkat (bukan build-up penuh; untuk build-up pakai riser)", intensity: mid,  source: bawaan}
+sfx_glitch:    {name: Glitch,    tag: glitch,    use: "twist mengejutkan, salah ucap, momen absurd", intensity: mid,  source: bawaan}
+sfx_boing:     {name: Boing,     tag: boing,     use: "lucu, konyol, salah tingkah", intensity: mid,  source: "sintesis clipodify (tools/make_sfx.py), bebas hak cipta"}
+sfx_bass_drop: {name: Bass Drop, tag: bass_drop, use: "reveal besar, pernyataan berat, pukulan dramatis", intensity: high, source: "sintesis clipodify (tools/make_sfx.py), bebas hak cipta"}
+sfx_chime:     {name: Chime,     tag: chime,     use: "kalimat kunci yang menyentuh/bijak, penutup lembut", intensity: low,  source: "sintesis clipodify (tools/make_sfx.py), bebas hak cipta"}
+sfx_tick:      {name: Tick,      tag: tick,      use: "detail kecil, angka, hitungan", intensity: low,  source: "sintesis clipodify (tools/make_sfx.py), bebas hak cipta"}
+sfx_swipe:     {name: Swipe,     tag: swipe,     use: "transisi cepat, teaser ke isi utama", intensity: mid,  source: "sintesis clipodify (tools/make_sfx.py), bebas hak cipta"}
+sfx_riser_short: {name: Riser Pendek, tag: riser, length: short, align: end, use: "build-up 1 dtk menuju momen besar (dipasang otomatis oleh build_up)", intensity: mid,  source: "sintesis clipodify (tools/make_sfx.py), bebas hak cipta"}
+sfx_riser_long:  {name: Riser Panjang, tag: riser, length: long,  align: end, use: "build-up 2 dtk menuju momen besar (dipasang otomatis oleh build_up)", intensity: high, source: "sintesis clipodify (tools/make_sfx.py), bebas hak cipta"}
+sfx_whoosh_soft:    {name: Whoosh Lembut, tag: whoosh, use: "transisi, pergantian topik/pembicara, twist", intensity: low, source: "sintesis clipodify (tools/make_sfx.py), bebas hak cipta"}
+sfx_whoosh_fast:    {name: Whoosh Cepat, tag: whoosh, use: "transisi cepat, ganti grid, potongan energik", intensity: mid, source: "sintesis clipodify (tools/make_sfx.py), bebas hak cipta"}
+sfx_hit_punch:      {name: Hit Punch, tag: hit, use: "kata terkeras, penegasan singkat, akhir kalimat tegas", intensity: high, source: "sintesis clipodify (tools/make_sfx.py), bebas hak cipta"}
+sfx_hit_tight:      {name: Hit Pendek, tag: hit, use: "penegasan cepat, angka, poin daftar yang kuat", intensity: mid, source: "sintesis clipodify (tools/make_sfx.py), bebas hak cipta"}
+sfx_boom:           {name: Boom, tag: boom, use: "reveal paling besar, pernyataan sangat berat (jarang!)", intensity: high, source: "sintesis clipodify (tools/make_sfx.py), bebas hak cipta"}
+sfx_record_scratch: {name: Record Scratch, tag: scratch, use: "berhenti mendadak: ucapan absurd, salah ucap, 'tunggu, apa?'", intensity: mid, source: "sintesis clipodify (tools/make_sfx.py), bebas hak cipta"}
+sfx_ding_gameshow:  {name: Ding Game Show, tag: ding, use: "jawaban benar, tebakan tepat, ide cemerlang", intensity: low, source: "sintesis clipodify (tools/make_sfx.py), bebas hak cipta"}
+sfx_buzzer:         {name: Buzzer Salah, tag: buzzer, use: "jawaban salah, alasan ngeles, klaim yang dibantah (lucu)", intensity: mid, source: "sintesis clipodify (tools/make_sfx.py), bebas hak cipta"}

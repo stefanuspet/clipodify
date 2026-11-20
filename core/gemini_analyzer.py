@@ -450,11 +450,71 @@ def _format_segments(segments: list[dict]) -> str:
     )
 
 
-def _format_candidate(index: int, window: dict, context: dict) -> str:
+def _overlapping(start: float, end: float, segments: list[dict]) -> list[dict]:
+    """Kembalikan segmen yang overlap dengan window [start, end]."""
+    return [s for s in segments if s.get("end", 0) > start and s.get("start", 0) < end]
+
+
+def _format_visual_signals(window: dict, signals: dict) -> str:
+    """Blok SINYAL VISUAL dari face/expression detection."""
+    face_segs = signals.get("face", [])
+    ws, we = window["start_seconds"], window["end_seconds"]
+    matches = _overlapping(ws, we, face_segs)
+    if not matches:
+        return ""
+
+    max_faces = max(s.get("face_count", 1) for s in matches)
+    lines = []
+    for s in matches:
+        expr = s.get("dominant_expression", "")
+        conf = s.get("confidence", 0)
+        if expr and conf >= 0.65:
+            lines.append(
+                f"  {seconds_to_timestamp(s['start'])}-{seconds_to_timestamp(s['end'])}"
+                f" → {expr} (conf:{conf:.0%})"
+            )
+
+    block = f"\nSINYAL VISUAL: {max_faces} orang terdeteksi"
+    if lines:
+        block += "\n" + "\n".join(lines)
+    return block
+
+
+def _format_audio_emotion_signals(window: dict, signals: dict) -> str:
+    """Blok SINYAL AUDIO EMOSI dari audio emotion detection."""
+    audio_segs = signals.get("audio_emotions", [])
+    ws, we = window["start_seconds"], window["end_seconds"]
+    matches = _overlapping(ws, we, audio_segs)
+    # Saring silence dan neutral agar tidak berisik — kecuali semua memang neutral
+    notable = [s for s in matches if s.get("emotion") not in ("silence", "neutral")]
+    segs_to_show = notable if notable else matches[:2]
+    if not segs_to_show:
+        return ""
+
+    lines = []
+    peak_energy = max((s.get("avg_energy", 0) for s in segs_to_show), default=0)
+    for s in segs_to_show:
+        emotion  = s.get("emotion", "")
+        energy   = s.get("avg_energy", 0)
+        intensity = s.get("intensity", 0)
+        peak_mark = " ← PEAK" if energy == peak_energy and energy > 0.6 else ""
+        lines.append(
+            f"  {seconds_to_timestamp(s['start'])}-{seconds_to_timestamp(s['end'])}"
+            f" → {emotion}  energy={energy:.2f}  intensity={intensity:.2f}{peak_mark}"
+        )
+
+    return "\nSINYAL AUDIO EMOSI:\n" + "\n".join(lines)
+
+
+def _format_candidate(index: int, window: dict, context: dict, signals: dict | None = None) -> str:
     comment = window.get("score_comment")
     comment_str = "n/a" if comment is None else f"{comment:.2f}"
     peak = (window.get("audio_features") or {}).get("peak_position")
     peak_str = f" (puncak di {peak:.0%})" if peak is not None else ""
+
+    signals = signals or {}
+    visual_block = _format_visual_signals(window, signals)
+    audio_block  = _format_audio_emotion_signals(window, signals)
 
     return (
         f"[KANDIDAT {index}]  Inti: {seconds_to_timestamp(window['start_seconds'])}"
@@ -463,7 +523,9 @@ def _format_candidate(index: int, window: dict, context: dict) -> str:
         f"Sinyal: comment={comment_str}"
         f" audio={window.get('score_audio', 0):.2f}{peak_str}"
         f" narrative={window.get('score_narrative', 0):.2f}"
-        f" text={window.get('score_text', 0):.2f}\n"
+        f" text={window.get('score_text', 0):.2f}"
+        f"{visual_block}"
+        f"{audio_block}\n"
         f"\n--- KONTEKS SEBELUM ---\n{_format_segments(context['before'])}"
         f"\n--- INTI ---\n{_format_segments(context['core'])}"
         f"\n--- KONTEKS SESUDAH ---\n{_format_segments(context['after'])}"
@@ -480,12 +542,15 @@ def build_prompt(
     max_seconds: int = MAX_CLIP_SECONDS,
     performance_hint: str | None = None,
     campaign_block: str = "",
+    signals: dict | None = None,
 ) -> str:
+    signals = signals or {}
     blocks = [
         _format_candidate(
             i,
             window,
             get_context_segments(window, whisper_segments, CONTEXT_SECONDS),
+            signals,
         )
         for i, window in enumerate(windows, 1)
     ]
@@ -543,6 +608,7 @@ def analyze(
     performance_hint: str | None = None,
     mode: str = MODE_REGULAR,
     campaign: dict | None = None,
+    signals: dict | None = None,
 ) -> list[dict]:
     """Kirim kandidat ke Gemini, kembalikan clip pilihannya (belum divalidasi).
 
@@ -564,7 +630,7 @@ def analyze(
 
     prompt = build_prompt(
         windows, whisper_segments, video_title, channel, language, min_seconds, max_seconds,
-        performance_hint, campaign_block,
+        performance_hint, campaign_block, signals=signals,
     )
 
     config = types.GenerateContentConfig(

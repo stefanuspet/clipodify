@@ -1,7 +1,7 @@
 import { NavLink } from "react-router-dom"
 import {
   Scissors, History, Download, Tv2, Radar, Camera,
-  Settings, Clapperboard, Layers,
+  Settings, Clapperboard, Layers, GraduationCap, Type,
 } from "lucide-react"
 
 const NAV = [
@@ -12,6 +12,8 @@ const NAV = [
   { to: "/scout",     icon: Radar,       label: "Scout" },
   { to: "/meta",      icon: Camera,      label: "Meta" },
   { to: "/editor",    icon: Clapperboard,label: "Editor" },
+  { to: "/studio",    icon: Type,        label: "Studio" },
+  { to: "/learning",  icon: GraduationCap, label: "Learning" },
   { to: "/assets",    icon: Layers,      label: "Assets" },
   { to: "/settings",  icon: Settings,    label: "Settings" },
 ]

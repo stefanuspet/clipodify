@@ -23,9 +23,11 @@ interface Props {
 
 const FONTS = [
   { value: "Anton",             label: "Anton"         },
-  { value: "BebasNeue",         label: "Bebas Neue"    },
-  { value: "Montserrat-Bold",   label: "Montserrat"    },
-  { value: "Poppins-Bold",      label: "Poppins"       },
+  { value: "Bebas Neue",        label: "Bebas Neue"    },
+  { value: "Montserrat",        label: "Montserrat"    },
+  { value: "Poppins",           label: "Poppins"       },
+  { value: "Luckiest Guy",      label: "Luckiest Guy"  },
+  { value: "Archivo Black",     label: "Archivo Black" },
 ]
 
 const POSITIONS = [
@@ -163,7 +165,7 @@ function OverlayRow({
         <div className={`text-center py-1 text-sm font-bold tracking-wide
           ${overlay.position === "top" ? "border-t" : overlay.position === "center" ? "border-y" : "border-b"}
           border-zinc-800`}
-          style={{ color: overlay.color, fontFamily: overlay.font.replace(/-\w+$/, "") }}
+          style={{ color: overlay.color, fontFamily: overlay.font }}
         >
           {overlay.text}
         </div>
